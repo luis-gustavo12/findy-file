@@ -1,0 +1,11 @@
+export component MainWindow inherits Window {
+    title: "findy-file";
+    preferred-width: 800px;
+    preferred-height: 500px;
+
+    in property <string> platform-name;
+
+    Text {
+        text: "findy-file — platform: " + root.platform-name;
+    }
+}

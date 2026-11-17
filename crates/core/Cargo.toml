@@ -1,0 +1,9 @@
+[package]
+name = "findy-core"
+description = "findy-file domain: models, rules and the platform contract."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]

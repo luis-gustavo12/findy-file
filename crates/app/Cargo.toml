@@ -1,0 +1,19 @@
+[package]
+name = "findy-app"
+description = "findy-file GUI (Slint) and binary."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "findy-file"
+path = "src/main.rs"
+
+[dependencies]
+findy-core.workspace = true
+findy-platform.workspace = true
+slint = "1.18.1"
+
+[build-dependencies]
+slint-build = "1.18.1"
