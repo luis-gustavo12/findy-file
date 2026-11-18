@@ -92,6 +92,7 @@ The OS adapter is selected **at compile time, never at runtime**. Each binary co
 
 ### `app` — the UI
 - Slint UI, screen state, and wiring between UI events and `core`.
+- All UI colors come from the `Theme` global in `crates/app/ui/theme.slint` ("slate and blue" palette, light and dark following the OS setting). Never hardcode colors in components; add a token to `Theme` instead.
 - Receives the adapter from `platform` at startup and passes it to `core`; never calls OS APIs directly.
 - Disk operations (listing large folders, copying, searching) **must not block the UI** — they run off the UI thread and hand results back to Slint (e.g., `slint::invoke_from_event_loop`).
 

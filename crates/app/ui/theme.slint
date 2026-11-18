@@ -1,0 +1,30 @@
+import { Palette } from "std-widgets.slint";
+
+// "Slate and blue" color palette, based on the Tailwind CSS slate and blue
+// scales. Light or dark follows the operating system setting until the user
+// changes it with the dark mode switch (which sets `Palette.color-scheme`).
+//
+// Every color used by the UI comes from here; don't hardcode colors in
+// components.
+export global Theme {
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    // Main highlight: links, active items, primary buttons.
+    out property <color> accent: dark ? #60a5fa : #2563eb;
+    // Text and icons drawn on top of `accent`.
+    out property <color> on-accent: dark ? #0f172a : #ffffff;
+
+    // Window background, behind the file list.
+    out property <color> background: dark ? #0f172a : #ffffff;
+    // Side panels, such as the sidebar.
+    out property <color> surface: dark ? #1e293b : #f1f5f9;
+    // Dividers and outlines.
+    out property <color> border: dark ? #334155 : #e2e8f0;
+    // Background of selected items.
+    out property <color> selection: dark ? #1e3a8a : #dbeafe;
+
+    // Main text.
+    out property <color> text: dark ? #f1f5f9 : #0f172a;
+    // Secondary text, such as file details.
+    out property <color> text-secondary: dark ? #94a3b8 : #475569;
+}
