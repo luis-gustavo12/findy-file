@@ -9,6 +9,76 @@ export struct EntryRow {
     size: string,
 }
 
+global ColumnStyle {
+    // Horizontal space between a column's edge and its text.
+    out property <length> text-padding: 6px;
+    // Horizontal space before the first column and after the last one.
+    out property <length> row-padding: 10px;
+}
+
+// Header of one column of the file list. Dragging its right edge resizes the
+// column.
+component ColumnHeader inherits Rectangle {
+    in property <string> title;
+    in property <TextHorizontalAlignment> alignment: left;
+
+    // Called while the right edge is dragged, with how far it moved since the
+    // last call.
+    callback resize(delta: length);
+
+    Text {
+        x: ColumnStyle.text-padding;
+        width: parent.width - 2 * ColumnStyle.text-padding;
+        text: root.title;
+        color: Theme.text-secondary;
+        vertical-alignment: center;
+        horizontal-alignment: root.alignment;
+        overflow: elide;
+    }
+
+    // Divider between this column and the next.
+    Rectangle {
+        x: parent.width - 1px;
+        y: (parent.height - self.height) / 2;
+        width: 1px;
+        height: 60%;
+        background: Theme.border;
+    }
+
+    // Resize handle centered on the divider, wider than it so it's easy to
+    // grab. The cursor shows the left-right arrows while over it.
+    TouchArea {
+        x: parent.width - self.width / 2;
+        width: 8px;
+        mouse-cursor: col-resize;
+
+        moved => {
+            // The handle follows the column edge, so the distance from where
+            // it was pressed is how much the width changed since the last move.
+            if self.pressed {
+                root.resize(self.mouse-x - self.pressed-x);
+            }
+        }
+    }
+}
+
+// One cell of a file list row.
+component ColumnCell inherits Rectangle {
+    in property <string> text;
+    in property <color> text-color;
+    in property <TextHorizontalAlignment> alignment: left;
+
+    Text {
+        x: ColumnStyle.text-padding;
+        width: parent.width - 2 * ColumnStyle.text-padding;
+        text: root.text;
+        color: root.text-color;
+        vertical-alignment: center;
+        horizontal-alignment: root.alignment;
+        overflow: elide;
+    }
+}
+
 export component MainWindow inherits Window {
     title: "findy-file";
     preferred-width: 800px;
@@ -18,10 +88,57 @@ export component MainWindow inherits Window {
     in-out property <string> current-path;
     in property <[EntryRow]> entries;
 
-    // Column widths, shared by the headers and the rows. Name takes the rest.
+    // Column widths, shared by the headers and the rows. Dragging the divider
+    // between two columns moves the border between them: one grows and its
+    // neighbor shrinks by the same amount, the others don't move. The right
+    // edge of the last column resizes only that column. The columns never get
+    // wider than the list, so there's no horizontal scrolling.
+    property <length> name-width: 230px;
     property <length> modified-width: 150px;
     property <length> kind-width: 110px;
-    property <length> size-width: 80px;
+    property <length> size-width: max(90px, root.size-min-width);
+
+    // Smallest width of each column. Size is measured from its widest value,
+    // so its text is never cut whatever the font.
+    property <length> name-min-width: 100px;
+    property <length> modified-min-width: 80px;
+    property <length> kind-min-width: 60px;
+    property <length> size-min-width: size-sample.preferred-width + 2 * ColumnStyle.text-padding;
+
+    // Room for the columns inside the list.
+    property <length> columns-space: list.visible-width - 2 * ColumnStyle.row-padding;
+
+    // When the window gets too narrow, Name gives up space (down to its
+    // minimum) so the other columns stay visible. It goes back to
+    // `name-width` when there's room again.
+    property <length> name-shown-width: root.fit(
+        root.name-width,
+        root.name-min-width,
+        root.columns-space - root.modified-width - root.kind-width - root.size-width);
+
+    // `wanted`, kept between `min-width` and `max-width`. If they conflict
+    // (window too narrow), the minimum wins.
+    pure function fit(wanted: length, min-width: length, max-width: length) -> length {
+        max(min-width, min(wanted, max-width))
+    }
+
+    // How far a divider can move when dragged by `delta`: as much as possible
+    // without making either column narrower than its minimum.
+    pure function divider-move(
+        delta: length,
+        left-width: length,
+        left-min-width: length,
+        right-width: length,
+        right-min-width: length
+    ) -> length {
+        max(left-min-width - left-width, min(delta, right-width - right-min-width))
+    }
+
+    // The widest text `format::size` produces, used to size the Size column.
+    size-sample := Text {
+        text: "1024.0 MB";
+        visible: false;
+    }
 
     VerticalLayout {
         // A: top bar with the path input.
@@ -69,39 +186,82 @@ export component MainWindow inherits Window {
 
             // C: items in the current folder, with column headers.
             VerticalLayout {
-                HorizontalLayout {
+                // `clip` hides what doesn't fit when the window is narrower
+                // than all the minimums together.
+                Rectangle {
                     height: 32px;
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    spacing: 12px;
+                    clip: true;
 
-                    Text {
-                        text: "Name";
-                        color: Theme.text-secondary;
-                        vertical-alignment: center;
-                        horizontal-stretch: 1;
-                    }
+                    HorizontalLayout {
+                        // Setting `x` keeps the column widths from becoming
+                        // the minimum width of the list (and of the window).
+                        x: 0;
+                        alignment: start;
+                        padding-left: ColumnStyle.row-padding;
+                        padding-right: ColumnStyle.row-padding;
 
-                    Text {
-                        text: "Date modified";
-                        color: Theme.text-secondary;
-                        vertical-alignment: center;
-                        width: root.modified-width;
-                    }
+                        ColumnHeader {
+                            title: "Name";
+                            width: root.name-shown-width;
+                            // Divider between Name and Date modified.
+                            resize(delta) => {
+                                let move = root.divider-move(
+                                    delta,
+                                    root.name-shown-width,
+                                    root.name-min-width,
+                                    root.modified-width,
+                                    root.modified-min-width);
+                                let new-name-width = root.name-shown-width + move;
+                                root.modified-width -= move;
+                                root.name-width = new-name-width;
+                            }
+                        }
 
-                    Text {
-                        text: "Type";
-                        color: Theme.text-secondary;
-                        vertical-alignment: center;
-                        width: root.kind-width;
-                    }
+                        ColumnHeader {
+                            title: "Date modified";
+                            width: root.modified-width;
+                            // Divider between Date modified and Type.
+                            resize(delta) => {
+                                let move = root.divider-move(
+                                    delta,
+                                    root.modified-width,
+                                    root.modified-min-width,
+                                    root.kind-width,
+                                    root.kind-min-width);
+                                root.modified-width += move;
+                                root.kind-width -= move;
+                            }
+                        }
 
-                    Text {
-                        text: "Size";
-                        color: Theme.text-secondary;
-                        vertical-alignment: center;
-                        horizontal-alignment: right;
-                        width: root.size-width;
+                        ColumnHeader {
+                            title: "Type";
+                            width: root.kind-width;
+                            // Divider between Type and Size.
+                            resize(delta) => {
+                                let move = root.divider-move(
+                                    delta,
+                                    root.kind-width,
+                                    root.kind-min-width,
+                                    root.size-width,
+                                    root.size-min-width);
+                                root.kind-width += move;
+                                root.size-width -= move;
+                            }
+                        }
+
+                        ColumnHeader {
+                            title: "Size";
+                            alignment: right;
+                            width: root.size-width;
+                            // Right edge of the last column: grows only into
+                            // the free space on its right.
+                            resize(delta) => {
+                                root.size-width = root.fit(
+                                    root.size-width + delta,
+                                    root.size-min-width,
+                                    root.columns-space - root.name-shown-width - root.modified-width - root.kind-width);
+                            }
+                        }
                     }
                 }
 
@@ -110,43 +270,42 @@ export component MainWindow inherits Window {
                     background: Theme.border;
                 }
 
-                ListView {
+                list := ListView {
+                    horizontal-scrollbar-policy: always-off;
+
                     for row in root.entries: Rectangle {
                         height: 28px;
 
                         HorizontalLayout {
-                            padding-left: 16px;
-                            padding-right: 16px;
-                            spacing: 12px;
+                            // As in the headers; here it keeps the list from
+                            // scrolling sideways in a very narrow window.
+                            x: 0;
+                            alignment: start;
+                            padding-left: ColumnStyle.row-padding;
+                            padding-right: ColumnStyle.row-padding;
 
-                            Text {
+                            ColumnCell {
                                 text: row.name;
-                                color: Theme.text;
-                                vertical-alignment: center;
-                                overflow: elide;
-                                horizontal-stretch: 1;
+                                text-color: Theme.text;
+                                width: root.name-shown-width;
                             }
 
-                            Text {
+                            ColumnCell {
                                 text: row.modified;
-                                color: Theme.text-secondary;
-                                vertical-alignment: center;
+                                text-color: Theme.text-secondary;
                                 width: root.modified-width;
                             }
 
-                            Text {
+                            ColumnCell {
                                 text: row.kind;
-                                color: Theme.text-secondary;
-                                vertical-alignment: center;
-                                overflow: elide;
+                                text-color: Theme.text-secondary;
                                 width: root.kind-width;
                             }
 
-                            Text {
+                            ColumnCell {
                                 text: row.size;
-                                color: Theme.text-secondary;
-                                vertical-alignment: center;
-                                horizontal-alignment: right;
+                                text-color: Theme.text-secondary;
+                                alignment: right;
                                 width: root.size-width;
                             }
                         }
