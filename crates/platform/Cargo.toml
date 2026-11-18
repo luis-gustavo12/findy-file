@@ -8,3 +8,6 @@ license.workspace = true
 
 [dependencies]
 findy-core.workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"

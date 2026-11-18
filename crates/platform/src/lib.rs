@@ -6,6 +6,8 @@
 //!
 //! This is the only crate in the workspace where `cfg(target_os)` may appear.
 
+mod common;
+
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]
