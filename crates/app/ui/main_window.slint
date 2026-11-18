@@ -1,5 +1,13 @@
-import { LineEdit, Palette, Switch } from "std-widgets.slint";
+import { LineEdit, ListView, Palette, Switch } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+
+// One line of the file list, already formatted for display.
+export struct EntryRow {
+    name: string,
+    modified: string,
+    kind: string,
+    size: string,
+}
 
 export component MainWindow inherits Window {
     title: "findy-file";
@@ -7,8 +15,13 @@ export component MainWindow inherits Window {
     preferred-height: 500px;
     background: Theme.background;
 
-    in property <string> platform-name;
     in-out property <string> current-path;
+    in property <[EntryRow]> entries;
+
+    // Column widths, shared by the headers and the rows. Name takes the rest.
+    property <length> modified-width: 150px;
+    property <length> kind-width: 110px;
+    property <length> size-width: 80px;
 
     VerticalLayout {
         // A: top bar with the path input.
@@ -54,14 +67,90 @@ export component MainWindow inherits Window {
                 background: Theme.border;
             }
 
-            // C: main content.
+            // C: items in the current folder, with column headers.
             VerticalLayout {
-                padding: 16px;
-                alignment: start;
+                HorizontalLayout {
+                    height: 32px;
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    spacing: 12px;
 
-                Text {
-                    text: "findy-file — platform: " + root.platform-name;
-                    color: Theme.text;
+                    Text {
+                        text: "Name";
+                        color: Theme.text-secondary;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+
+                    Text {
+                        text: "Date modified";
+                        color: Theme.text-secondary;
+                        vertical-alignment: center;
+                        width: root.modified-width;
+                    }
+
+                    Text {
+                        text: "Type";
+                        color: Theme.text-secondary;
+                        vertical-alignment: center;
+                        width: root.kind-width;
+                    }
+
+                    Text {
+                        text: "Size";
+                        color: Theme.text-secondary;
+                        vertical-alignment: center;
+                        horizontal-alignment: right;
+                        width: root.size-width;
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Theme.border;
+                }
+
+                ListView {
+                    for row in root.entries: Rectangle {
+                        height: 28px;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 12px;
+
+                            Text {
+                                text: row.name;
+                                color: Theme.text;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
+
+                            Text {
+                                text: row.modified;
+                                color: Theme.text-secondary;
+                                vertical-alignment: center;
+                                width: root.modified-width;
+                            }
+
+                            Text {
+                                text: row.kind;
+                                color: Theme.text-secondary;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                width: root.kind-width;
+                            }
+
+                            Text {
+                                text: row.size;
+                                color: Theme.text-secondary;
+                                vertical-alignment: center;
+                                horizontal-alignment: right;
+                                width: root.size-width;
+                            }
+                        }
+                    }
                 }
             }
         }
