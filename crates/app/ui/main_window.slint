@@ -1,11 +1,69 @@
+import { LineEdit, Palette, Switch } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+
 export component MainWindow inherits Window {
     title: "findy-file";
     preferred-width: 800px;
     preferred-height: 500px;
+    background: Theme.background;
 
     in property <string> platform-name;
+    in-out property <string> current-path;
 
-    Text {
-        text: "findy-file — platform: " + root.platform-name;
+    VerticalLayout {
+        // A: top bar with the path input.
+        Rectangle {
+            background: Theme.accent;
+            // Keep the bar at its natural height; only B and C grow.
+            vertical-stretch: 0;
+
+            HorizontalLayout {
+                padding: 8px;
+
+                LineEdit {
+                    text <=> root.current-path;
+                    placeholder-text: "Type a path";
+                }
+            }
+        }
+
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            // B: sidebar.
+            Rectangle {
+                width: 180px;
+                background: Theme.surface;
+
+                VerticalLayout {
+                    padding: 16px;
+                    alignment: start;
+
+                    Switch {
+                        text: "Dark mode";
+                        checked: Theme.dark;
+                        toggled => {
+                            Palette.color-scheme = self.checked ? ColorScheme.dark : ColorScheme.light;
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                width: 1px;
+                background: Theme.border;
+            }
+
+            // C: main content.
+            VerticalLayout {
+                padding: 16px;
+                alignment: start;
+
+                Text {
+                    text: "findy-file — platform: " + root.platform-name;
+                    color: Theme.text;
+                }
+            }
+        }
     }
 }
